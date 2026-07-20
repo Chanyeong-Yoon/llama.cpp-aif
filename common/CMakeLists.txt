@@ -54,6 +54,8 @@ endif()
 set(TARGET llama-common)
 
 add_library(${TARGET}
+    aif-client.cpp
+    aif-client.h
     arg.cpp
     arg.h
     base64.hpp

@@ -85,8 +85,10 @@ llama_context::llama_context(
                                hparams.n_ctx_orig_yarn != 0 ? hparams.n_ctx_orig_yarn :
                                                               hparams.n_ctx_train;
 
-    cparams.cb_eval           = params.cb_eval;
-    cparams.cb_eval_user_data = params.cb_eval_user_data;
+    cparams.cb_eval                 = params.cb_eval;
+    cparams.cb_eval_user_data       = params.cb_eval_user_data;
+    cparams.cb_node_override        = params.cb_node_override;
+    cparams.cb_node_override_user_data = params.cb_node_override_user_data;
 
     cparams.ctx_other = nullptr;
 
@@ -1331,6 +1333,7 @@ llm_graph_result * llama_context::process_ubatch(const llama_ubatch & ubatch, ll
 
         ggml_backend_sched_reset(sched.get());
         ggml_backend_sched_set_eval_callback(sched.get(), cparams.cb_eval, cparams.cb_eval_user_data);
+        ggml_backend_sched_set_node_override_callback(sched.get(), cparams.cb_node_override, cparams.cb_node_override_user_data);
 
         //const auto t_start_us = ggml_time_us();
 
@@ -3469,6 +3472,8 @@ llama_context_params llama_context_default_params() {
         /*.defrag_thold                =*/ -1.0f,
         /*.cb_eval                     =*/ nullptr,
         /*.cb_eval_user_data           =*/ nullptr,
+        /*.cb_node_override            =*/ nullptr,
+        /*.cb_node_override_user_data  =*/ nullptr,
         /*.type_k                      =*/ GGML_TYPE_F16,
         /*.type_v                      =*/ GGML_TYPE_F16,
         /*.abort_callback              =*/ nullptr,

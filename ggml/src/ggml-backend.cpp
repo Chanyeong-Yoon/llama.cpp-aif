@@ -812,6 +812,8 @@ struct ggml_backend_sched {
 
     ggml_backend_sched_eval_callback callback_eval;
     void * callback_eval_user_data;
+    ggml_backend_sched_node_override_callback callback_node_override;
+    void * callback_node_override_user_data;
 
     char * context_buffer;
     size_t context_buffer_size;
@@ -1674,7 +1676,7 @@ static enum ggml_status ggml_backend_sched_compute_splits(ggml_backend_sched_t s
             }
         }
 
-        if (!sched->callback_eval) {
+        if (!sched->callback_eval && !sched->callback_node_override) {
             enum ggml_status ec = ggml_backend_graph_compute_async(split_backend, &split->graph);
             if (ec != GGML_STATUS_SUCCESS) {
                 return ec;
@@ -1683,16 +1685,35 @@ static enum ggml_status ggml_backend_sched_compute_splits(ggml_backend_sched_t s
             // similar to ggml_backend_compare_graph_backend
             for (int j0 = 0; j0 < split->graph.n_nodes; j0++) {
                 struct ggml_tensor * t = split->graph.nodes[j0];
+                const bool override = sched->callback_node_override &&
+                    sched->callback_node_override(split_backend, t, true, sched->callback_node_override_user_data);
+
+                if (override) {
+                    ggml_backend_synchronize(split_backend);
+                    if (!sched->callback_node_override(split_backend, t, false, sched->callback_node_override_user_data)) {
+                        return GGML_STATUS_FAILED;
+                    }
+                    continue;
+                }
 
                 // check if the user needs data from this node
-                bool need = sched->callback_eval(t, true, sched->callback_eval_user_data);
+                bool need = sched->callback_eval &&
+                    sched->callback_eval(t, true, sched->callback_eval_user_data);
 
                 int j1 = j0;
 
                 // determine the range [j0, j1] of nodes that can be computed together
                 while (!need && j1 < split->graph.n_nodes - 1) {
                     t = split->graph.nodes[++j1];
-                    need = sched->callback_eval(t, true, sched->callback_eval_user_data);
+                    const bool next_override = sched->callback_node_override &&
+                        sched->callback_node_override(split_backend, t, true, sched->callback_node_override_user_data);
+                    if (next_override) {
+                        --j1;
+                        t = split->graph.nodes[j1];
+                        break;
+                    }
+                    need = sched->callback_eval &&
+                        sched->callback_eval(t, true, sched->callback_eval_user_data);
                 }
 
                 struct ggml_cgraph gv = ggml_graph_view(&split->graph, j0, j1 + 1);
@@ -1918,6 +1939,12 @@ void ggml_backend_sched_set_eval_callback(ggml_backend_sched_t sched, ggml_backe
     GGML_ASSERT(sched);
     sched->callback_eval = callback;
     sched->callback_eval_user_data = user_data;
+}
+
+void ggml_backend_sched_set_node_override_callback(ggml_backend_sched_t sched, ggml_backend_sched_node_override_callback callback, void * user_data) {
+    GGML_ASSERT(sched);
+    sched->callback_node_override = callback;
+    sched->callback_node_override_user_data = user_data;
 }
 
 int ggml_backend_sched_get_n_splits(ggml_backend_sched_t sched) {

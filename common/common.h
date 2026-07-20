@@ -307,6 +307,26 @@ struct common_params_model {
     }
 };
 
+struct common_params_aif {
+    std::string device        = ""; // NVMe namespace path for AIF passthrough commands     // NOLINT
+    std::string tensor_filter = R"(^(blk\.[0-9]+\.(attn_(q|k|v|output)|ffn_(gate|up|down))|output)\.weight$)"; // NOLINT
+
+    int32_t  post_max = 1;        // maximum number of matching tensors to post, 0 = unlimited
+    uint64_t lba_base = 0x100000; // starting LBA for synthetic AIF tensor placement
+    bool     smoke_gemv = false;  // issue one dummy GEMV after posting the first matching tensor
+    bool     shadow_gemv = false; // issue dummy GEMVs from the GGML eval callback without changing results
+    int32_t  shadow_gemv_max = 1; // maximum shadow GEMV calls during graph execution, 0 = unlimited
+    bool     replace_gemv = false; // replace matching GGML GEMV nodes with AIF GEMV dummy outputs
+    int32_t  replace_gemv_max = 0; // maximum replacement GEMV calls during graph execution, 0 = unlimited
+    bool     parallel = false; // overlap QKV/MHA and split FFN projections between host and AIF
+    uint64_t host_budget_mib = 8192; // logical host-memory budget used by the AiF placement policy
+    uint64_t kv_cache_mib = 1024; // KV-cache reservation deducted from the host-memory budget
+    double   host_bandwidth_gbps = 86.5; // modeled host bandwidth for retained FFN submatrices
+    bool     graph_decode_only = true; // offload graph GEMVs only during decode, matching AiF's decode-focused path
+    bool     log_gemv = false; // print one log line per graph GEMV call; CSV logging is unaffected
+    std::string shadow_gemv_log = ""; // optional CSV path for shadow GEMV measurements // NOLINT
+};
+
 // draft-model-based speculative decoding parameters
 struct common_params_speculative_draft {
     int32_t n_max = 3; // maximum number of tokens to draft during speculative decoding
@@ -473,6 +493,8 @@ struct common_params {
 
     ggml_backend_sched_eval_callback cb_eval = nullptr;
     void * cb_eval_user_data                 = nullptr;
+    ggml_backend_sched_node_override_callback cb_node_override = nullptr;
+    void * cb_node_override_user_data                         = nullptr;
 
     ggml_numa_strategy numa = GGML_NUMA_STRATEGY_DISABLED;
 
@@ -487,6 +509,7 @@ struct common_params {
     struct common_params_diffusion   diffusion;
 
     struct common_params_model model;
+    struct common_params_aif   aif;
 
     std::set<std::string> model_alias;     // model aliases                                                 // NOLINT
     std::set<std::string> model_tags;      // model tags (informational, not used for routing)              // NOLINT

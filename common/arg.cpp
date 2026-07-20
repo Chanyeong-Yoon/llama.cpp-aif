@@ -2326,6 +2326,138 @@ common_params_context common_params_parser_init(common_params & params, llama_ex
         }
     ).set_env("LLAMA_ARG_OVERRIDE_TENSOR"));
     add_opt(common_arg(
+        {"--aif-dev"}, "DEV",
+        "NVMe namespace path for AIF passthrough tensor posting, e.g. /dev/nvmeXnY",
+        [](common_params & params, const std::string & value) {
+            params.aif.device = value;
+        }
+    ).set_env("LLAMA_ARG_AIF_DEV"));
+    add_opt(common_arg(
+        {"--aif-post-max"}, "N",
+        "maximum number of matching model tensors to register with AIF at load time, 0 = unlimited",
+        [](common_params & params, int value) {
+            if (value < 0) {
+                throw std::invalid_argument("invalid value");
+            }
+            params.aif.post_max = value;
+        }
+    ).set_env("LLAMA_ARG_AIF_POST_MAX"));
+    add_opt(common_arg(
+        {"--aif-lba-base"}, "LBA",
+        string_format("starting LBA for synthetic AIF tensor placement (default: 0x%llx)", (unsigned long long) params.aif.lba_base),
+        [](common_params & params, const std::string & value) {
+            params.aif.lba_base = std::stoull(value, nullptr, 0);
+        }
+    ).set_env("LLAMA_ARG_AIF_LBA_BASE"));
+    add_opt(common_arg(
+        {"--aif-tensor-filter"}, "REGEX",
+        "regex for selecting model tensors to register with AIF at load time",
+        [](common_params & params, const std::string & value) {
+            params.aif.tensor_filter = value;
+        }
+    ).set_env("LLAMA_ARG_AIF_TENSOR_FILTER"));
+    add_opt(common_arg(
+        {"--aif-smoke-gemv"},
+        "after AIF tensor posting, issue one dummy AIF GEMV for the first posted tensor",
+        [](common_params & params) {
+            params.aif.smoke_gemv = true;
+        }
+    ).set_env("LLAMA_ARG_AIF_SMOKE_GEMV"));
+    add_opt(common_arg(
+        {"--aif-shadow-gemv"},
+        "during graph execution, issue dummy AIF GEMVs for posted tensors without changing llama.cpp results",
+        [](common_params & params) {
+            params.aif.shadow_gemv = true;
+        }
+    ).set_env("LLAMA_ARG_AIF_SHADOW_GEMV"));
+    add_opt(common_arg(
+        {"--aif-shadow-gemv-max"}, "N",
+        "maximum number of AIF shadow GEMV calls during graph execution, 0 = unlimited",
+        [](common_params & params, int value) {
+            if (value < 0) {
+                throw std::invalid_argument("invalid value");
+            }
+            params.aif.shadow_gemv_max = value;
+        }
+    ).set_env("LLAMA_ARG_AIF_SHADOW_GEMV_MAX"));
+    add_opt(common_arg(
+        {"--aif-replace-gemv"},
+        "during graph execution, replace posted-tensor GEMV nodes with AIF GEMV dummy outputs",
+        [](common_params & params) {
+            params.aif.replace_gemv = true;
+        }
+    ).set_env("LLAMA_ARG_AIF_REPLACE_GEMV"));
+    add_opt(common_arg(
+        {"--aif-replace-gemv-max"}, "N",
+        "maximum number of AIF replacement GEMV calls during graph execution, 0 = unlimited",
+        [](common_params & params, int value) {
+            if (value < 0) {
+                throw std::invalid_argument("invalid value");
+            }
+            params.aif.replace_gemv_max = value;
+        }
+    ).set_env("LLAMA_ARG_AIF_REPLACE_GEMV_MAX"));
+    add_opt(common_arg(
+        {"--aif-parallel"},
+        "enable AiF head-major QKV/MHA overlap and host/AIF FFN tensor parallelism",
+        [](common_params & params) {
+            params.aif.parallel = true;
+            params.aif.replace_gemv = true;
+        }
+    ).set_env("LLAMA_ARG_AIF_PARALLEL"));
+    add_opt(common_arg(
+        {"--aif-host-budget-mib"}, "MiB",
+        "logical host-memory budget for AiF tensor parallelism (default: 8192 MiB)",
+        [](common_params & params, int value) {
+            if (value <= 0) {
+                throw std::invalid_argument("invalid value");
+            }
+            params.aif.host_budget_mib = static_cast<uint64_t>(value);
+        }
+    ).set_env("LLAMA_ARG_AIF_HOST_BUDGET_MIB"));
+    add_opt(common_arg(
+        {"--aif-kv-cache-mib"}, "MiB",
+        "KV-cache reservation deducted from the AiF host-memory budget",
+        [](common_params & params, int value) {
+            if (value < 0) {
+                throw std::invalid_argument("invalid value");
+            }
+            params.aif.kv_cache_mib = static_cast<uint64_t>(value);
+        }
+    ).set_env("LLAMA_ARG_AIF_KV_CACHE_MIB"));
+    add_opt(common_arg(
+        {"--aif-host-bandwidth-gbps"}, "GB/s",
+        "modeled host bandwidth for retained FFN submatrices (default: 86.5 GB/s)",
+        [](common_params & params, const std::string & value_text) {
+            const double value = std::stod(value_text);
+            if (!(value > 0.0)) {
+                throw std::invalid_argument("invalid value");
+            }
+            params.aif.host_bandwidth_gbps = value;
+        }
+    ).set_env("LLAMA_ARG_AIF_HOST_BANDWIDTH_GBPS"));
+    add_opt(common_arg(
+        {"--aif-all-phases"},
+        "allow AIF graph GEMVs during prompt/replay as well as decode (default: decode only)",
+        [](common_params & params) {
+            params.aif.graph_decode_only = false;
+        }
+    ).set_env("LLAMA_ARG_AIF_ALL_PHASES"));
+    add_opt(common_arg(
+        {"--aif-log-gemv"},
+        "print one log line per AIF graph GEMV call; CSV logging remains available without this",
+        [](common_params & params) {
+            params.aif.log_gemv = true;
+        }
+    ).set_env("LLAMA_ARG_AIF_LOG_GEMV"));
+    add_opt(common_arg(
+        {"--aif-shadow-log"}, "FILE",
+        "write AIF shadow/replacement GEMV measurements to a CSV file",
+        [](common_params & params, const std::string & value) {
+            params.aif.shadow_gemv_log = value;
+        }
+    ).set_env("LLAMA_ARG_AIF_SHADOW_LOG"));
+    add_opt(common_arg(
         {"-cmoe", "--cpu-moe"},
         "keep all Mixture of Experts (MoE) weights in the CPU",
         [](common_params & params) {
