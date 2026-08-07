@@ -1,0 +1,72 @@
+name: AiF Linux CI
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - research/aif-reproduction-v1
+    paths:
+      - '.github/workflows/aif-linux.yml'
+      - 'CMakeLists.txt'
+      - 'common/**'
+      - 'ggml/**'
+      - 'src/**'
+      - 'tools/CMakeLists.txt'
+      - 'tools/aif-bench/**'
+      - 'tools/aif-probe/**'
+      - 'tools/aif-report/**'
+  pull_request:
+    paths:
+      - '.github/workflows/aif-linux.yml'
+      - 'CMakeLists.txt'
+      - 'common/**'
+      - 'ggml/**'
+      - 'src/**'
+      - 'tools/CMakeLists.txt'
+      - 'tools/aif-bench/**'
+      - 'tools/aif-probe/**'
+      - 'tools/aif-report/**'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout llama.cpp AiF
+        uses: actions/checkout@v6
+
+      - name: Checkout NVMeVirt protocol
+        uses: actions/checkout@v6
+        with:
+          repository: Chanyeong-Yoon/nvmevirt-aif
+          ref: research/aif-reproduction-v1
+          path: nvmevirt-aif
+
+      - name: Check protocol ABI
+        run: |
+          python3 tools/aif-bench/check_protocol.py \
+            --nvmevirt-header "$GITHUB_WORKSPACE/nvmevirt-aif/aif.h"
+
+      - name: Configure
+        run: |
+          cmake -S . -B build-aif-ci \
+            -DGGML_NATIVE=OFF \
+            -DLLAMA_BUILD_TESTS=OFF \
+            -DLLAMA_BUILD_SERVER=OFF \
+            -DLLAMA_BUILD_UI=OFF \
+            -DLLAMA_BUILD_APP=OFF
+
+      - name: Build AiF targets
+        run: |
+          cmake --build build-aif-ci --parallel 2 --target \
+            llama-completion \
+            llama-aif-probe \
+            llama-aif-report
