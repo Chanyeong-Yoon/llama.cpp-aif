@@ -54,6 +54,8 @@ HEAD_PIPELINE_RE = re.compile(
     r"pipeline_finish=([0-9.]+)\s*us\s*tail_wait=([0-9.]+)\s*us"
 )
 
+PAPER_PCIE_MIB_S = 8_000_000_000 / (1024 * 1024)
+
 
 def shell_join(cmd):
     return " ".join(shlex.quote(str(x)) for x in cmd)
@@ -304,7 +306,12 @@ def main():
     parser.add_argument("--tensor-filter", default="", help="Optional --aif-tensor-filter regex")
     parser.add_argument("--top", type=int, default=12, help="Top tensors shown in AIF report")
     parser.add_argument("--steps", type=int, default=12, help="Decode steps shown in AIF report")
-    parser.add_argument("--pcie-mib-s", type=float, default=8000.0, help="PCIe bandwidth used by llama-aif-report")
+    parser.add_argument(
+        "--pcie-mib-s",
+        type=float,
+        default=PAPER_PCIE_MIB_S,
+        help="PCIe bandwidth used by llama-aif-report; default matches the AiF 8.0 GB/s setting",
+    )
     parser.add_argument("--skip-baseline", action="store_true", help="Do not run CPU baseline")
     parser.add_argument("--skip-aif", action="store_true", help="Do not run AIF replacement")
     parser.add_argument("--no-reset", action="store_true", help="Do not issue AIF reset before each AIF run")
