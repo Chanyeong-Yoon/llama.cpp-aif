@@ -1835,6 +1835,12 @@ static bool common_aif_smoke_gemv(
     const bool skip_output_copy = full_total_u64 > max_ioctl_payload;
     const uint64_t total_u64 = skip_output_copy ? static_cast<uint64_t>(input_offset) + input_nbytes : full_total_u64;
 
+    if (total_u64 > max_ioctl_payload) {
+        LOG_ERR("%s: %s input payload for tensor '%s' exceeds the %" PRIu32 "-byte passthrough limit\n",
+                __func__, label, tensor_name.c_str(), max_ioctl_payload);
+        return false;
+    }
+
     uint32_t total = 0;
     if (!common_aif_u64_to_u32(total_u64, total)) {
         LOG_ERR("%s: %s command buffer too large for tensor '%s'\n", __func__, label, tensor_name.c_str());
