@@ -674,7 +674,7 @@ static int run_report(
     print_time_line("  SSD internal pipeline", matrix_ns, rows.size(), max_matrix_ns);
     print_time_line("  output PCIe", output_pcie_ns, rows.size(), max_output_pcie_ns);
     print_time_line("ioctl elapsed", ioctl_elapsed_ns, rows.size(), max_ioctl_elapsed_ns);
-    print_time_line("Memory+SSD read LB", memory_ssd_read_ns, rows.size(), max_memory_ssd_read_ns);
+    print_time_line("Memory+SSD read ref", memory_ssd_read_ns, rows.size(), max_memory_ssd_read_ns);
     std::cout << "  Memory+SSD matrix PCIe total=" << std::fixed << std::setprecision(3) << ns_to_us(memory_ssd_matrix_pcie_ns)
               << " us at " << std::fixed << std::setprecision(1) << pcie_mib_s << " MiB/s\n";
 
@@ -808,7 +808,7 @@ static int run_report(
                   << " avg=" << std::fixed << std::setprecision(3) << avg_ioctl_step_ns / 1000.0 << " us/step"
                   << " estimated=" << std::fixed << std::setprecision(2) << ioctl_tps << " tok/s"
                   << '\n';
-        std::cout << "Memory+SSD matrix-read lower bound:"
+        std::cout << "Memory+SSD matrix-read reference:"
                   << " total=" << std::fixed << std::setprecision(3) << ns_to_us(decode_memory_ssd_read_ns) << " us"
                   << " avg=" << std::fixed << std::setprecision(3) << avg_memory_ssd_step_ns / 1000.0 << " us/step"
                   << " min=" << std::fixed << std::setprecision(3) << ns_to_us(decode_min_step_memory_ssd_read_ns) << " us"
@@ -861,11 +861,11 @@ static int run_report(
                       << '\n';
             std::cout << "Memory+SSD estimated full decode:"
                       << " CPU_eval=" << std::fixed << std::setprecision(3) << baseline.avg_us << " us/token"
-                      << " + matrix_read_LB=" << std::fixed << std::setprecision(3) << memory_ssd_read_avg_us << " us/token"
+                      << " + matrix_read_reference=" << std::fixed << std::setprecision(3) << memory_ssd_read_avg_us << " us/token"
                       << " => avg=" << std::fixed << std::setprecision(3) << memory_ssd_full_avg_us << " us/token"
                       << " tps=" << std::fixed << std::setprecision(2) << memory_ssd_full_tps
                       << '\n';
-            std::cout << "AiF GEMV-only speedup_vs_Memory+SSD_matrix_read_LB="
+            std::cout << "AiF GEMV-only speedup_vs_Memory+SSD_matrix_read_reference="
                       << std::fixed << std::setprecision(3) << matrix_read_speedup << "x"
                       << '\n';
             if (aif_eval.valid) {
@@ -873,7 +873,7 @@ static int run_report(
                 const double aif_e2e_speedup_vs_memory_ssd = aif_eval.avg_us > 0.0 ? memory_ssd_full_avg_us / aif_eval.avg_us : 0.0;
                 std::cout << "AIF replacement end-to-end:"
                           << " speedup_vs_CPU_eval=" << std::fixed << std::setprecision(3) << aif_e2e_speedup_vs_cpu << "x"
-                          << " speedup_vs_Memory+SSD_full_LB=" << std::fixed << std::setprecision(3) << aif_e2e_speedup_vs_memory_ssd << "x"
+                          << " speedup_vs_Memory+SSD_full_reference=" << std::fixed << std::setprecision(3) << aif_e2e_speedup_vs_memory_ssd << "x"
                           << '\n';
             }
 
@@ -920,7 +920,7 @@ static int run_report(
                 std::cout << "estimated AiF hybrid end-to-end: provide --cpu-offloadable-us or --cpu-offloadable-frac to compute CPU_remaining + AiF_GEMV\n";
             }
 
-            std::cout << "note: Memory+SSD full decode is a lower-bound estimate: CPU in-memory eval plus modeled SSD matrix-read cost, excluding extra software/cache effects\n";
+            std::cout << "note: Memory+SSD full decode is a comparison reference: CPU in-memory eval plus modeled matrix-read cost, not a conventional NVMe measurement\n";
             std::cout << "note: AiF GEMV-only excludes CPU non-GEMV work; hybrid estimate replaces only the CPU offloadable GEMV portion\n";
         }
 
