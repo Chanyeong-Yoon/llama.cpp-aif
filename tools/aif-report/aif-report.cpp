@@ -14,6 +14,8 @@
 #include <unordered_map>
 #include <vector>
 
+static constexpr double AIF_PCIE_MIB_PER_SECOND = 8000000000.0 / (1024.0 * 1024.0);
+
 struct aif_csv_row {
     std::uint64_t call_index = 0;
     std::string phase = "unknown";
@@ -135,7 +137,7 @@ struct hybrid_estimate_config {
 static void usage(const char * prog) {
     std::cerr << "Usage: " << prog
               << " CSV [--top N] [--steps N] [--baseline-log FILE] [--aif-log FILE]"
-              << " [--pcie-mib-s MiB/s]"
+              << " [--pcie-mib-s MiB/s (default: AiF 8.0 GB/s)]"
               << " [--cpu-offloadable-us US | --cpu-offloadable-frac F]\n";
 }
 
@@ -1026,7 +1028,7 @@ int main(int argc, char ** argv) {
     std::string aif_log_path;
     std::size_t top_n = 10;
     std::size_t step_top_n = 10;
-    double pcie_mib_s = 8000.0;
+    double pcie_mib_s = AIF_PCIE_MIB_PER_SECOND;
     hybrid_estimate_config hybrid_config;
 
     path = argv[1];
