@@ -31,7 +31,7 @@ AIF_E2E_RE = re.compile(
     r"AIF eval:.*avg=([0-9.]+)\s*us/token\s*tps=([0-9.]+)"
 )
 MEMORY_SSD_IO_RE = re.compile(
-    r"Memory\+SSD matrix-read lower bound:.*avg=([0-9.]+)\s*us/step.*estimated=([0-9.]+)"
+    r"Memory\+SSD matrix-read (?:reference|lower bound):.*avg=([0-9.]+)\s*us/step.*estimated=([0-9.]+)"
 )
 MEMORY_SSD_FULL_RE = re.compile(
     r"Memory\+SSD estimated full decode:.*avg=([0-9.]+)\s*us/token\s*tps=([0-9.]+)"
